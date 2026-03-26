@@ -4,8 +4,10 @@ import prisma from "../configs/prisma.js";
 export const inngest = new Inngest({ id: "project-management" });
 
 const syncUserCreation = inngest.createFunction(
-  { id: "sync-user-from-clerk" },
-  { event: "clerk/user.created" },
+  {
+    id: "sync-user-from-clerk",
+    triggers: [{ event: "clerk/user.created" }],
+  },
   async ({ event }) => {
     const { data } = event;
 
@@ -27,29 +29,29 @@ const syncUserCreation = inngest.createFunction(
 );
 
 const syncUserDeletion = inngest.createFunction(
-  { id: "delete-user-with-clerk" },
-  { event: "clerk/user.deleted" },
+  {
+    id: "delete-user-with-clerk",
+    triggers: [{ event: "clerk/user.deleted" }],
+  },
   async ({ event }) => {
     const { data } = event;
 
     await prisma.user.deleteMany({
-      where: {
-        id: data.id,
-      },
+      where: { id: data.id },
     });
   },
 );
 
 const syncUserUpdation = inngest.createFunction(
-  { id: "update-user-from-clerk" },
-  { event: "clerk/user.updated" },
+  {
+    id: "update-user-from-clerk",
+    triggers: [{ event: "clerk/user.updated" }],
+  },
   async ({ event }) => {
     const { data } = event;
 
     await prisma.user.updateMany({
-      where: {
-        id: data.id,
-      },
+      where: { id: data.id },
       data: {
         email: data.email_addresses?.[0]?.email_address || "",
         name: `${data?.first_name || ""} ${data?.last_name || ""}`.trim(),
