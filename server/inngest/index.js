@@ -1,5 +1,4 @@
 import { Inngest } from "inngest";
-import prisma from "../configs/prisma.js";
 
 export const inngest = new Inngest({ id: "project-management" });
 
@@ -9,6 +8,7 @@ const syncUserCreation = inngest.createFunction(
     triggers: [{ event: "clerk/user.created" }],
   },
   async ({ event }) => {
+    const { default: prisma } = await import("../configs/prisma.js");
     const { data } = event;
 
     await prisma.user.create({
@@ -28,6 +28,7 @@ const syncUserDeletion = inngest.createFunction(
     triggers: [{ event: "clerk/user.deleted" }],
   },
   async ({ event }) => {
+    const { default: prisma } = await import("../configs/prisma.js");
     const { data } = event;
 
     await prisma.user.delete({
@@ -42,6 +43,7 @@ const syncUserUpdation = inngest.createFunction(
     triggers: [{ event: "clerk/user.updated" }],
   },
   async ({ event }) => {
+    const { default: prisma } = await import("../configs/prisma.js");
     const { data } = event;
 
     await prisma.user.update({
