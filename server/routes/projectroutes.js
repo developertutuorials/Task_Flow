@@ -3,12 +3,14 @@ import {
   addMember,
   createProject,
   updateProject,
+  deleteProject,
 } from "../controllers/projectController.js";
 
 const projectRouter = express.Router();
 
 projectRouter.post("/", createProject);
 projectRouter.put("/:projectId", updateProject);
+projectRouter.delete("/:projectId", deleteProject);
 projectRouter.post("/:projectId/addMember", addMember);
 
 export default projectRouter;
