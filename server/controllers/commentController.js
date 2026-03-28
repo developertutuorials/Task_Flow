@@ -1,22 +1,28 @@
 import prisma from "../configs/prisma.js";
 
-//  Add comment
+// Add comment
 export const addComment = async (req, res) => {
   try {
     const { userId } = await req.auth();
     const { content, taskId } = req.body;
 
-    // check if user is projectmember
     const task = await prisma.task.findUnique({
       where: { id: taskId },
     });
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
     const project = await prisma.project.findUnique({
       where: { id: task.projectId },
-      include: { member: { include: { user: true } } },
+      include: { members: { include: { user: true } } },
     });
+
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
+
     const member = project.members.find((member) => member.userId === userId);
 
     if (!member) {
@@ -24,10 +30,12 @@ export const addComment = async (req, res) => {
         .status(403)
         .json({ message: "You are not member of this project" });
     }
+
     const comment = await prisma.comment.create({
       data: { taskId, content, userId },
       include: { user: true },
     });
+
     res.json({ comment });
   } catch (error) {
     console.log(error);
@@ -35,8 +43,7 @@ export const addComment = async (req, res) => {
   }
 };
 
-//  get comments for task
-
+// Get comments for task
 export const getTaskComments = async (req, res) => {
   try {
     const { taskId } = req.params;
