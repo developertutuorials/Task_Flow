@@ -45,10 +45,14 @@ export const createTask = async (req, res) => {
         type,
         status,
         due_date: due_date ? new Date(due_date) : null,
-        assigneeId: assigneeId || null,
         project: {
           connect: { id: projectId },
         },
+        ...(assigneeId && {
+          assignee: {
+            connect: { id: assigneeId },
+          },
+        }),
       },
       include: { assignee: true },
     });
