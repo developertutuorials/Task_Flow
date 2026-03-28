@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./pages/Layout";
 import { Toaster } from "react-hot-toast";
 import Dashboard from "./pages/Dashboard";
@@ -28,7 +28,11 @@ const App = () => {
           <Route path="projects" element={<Projects />} />
           <Route path="projectsDetail" element={<ProjectDetails />} />
           <Route path="taskDetails" element={<TaskDetails />} />
+          <Route path="create-organization" element={<Dashboard />} />
         </Route>
+
+        {/* Koi bhi unknown route / pe bhejo */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
   );
