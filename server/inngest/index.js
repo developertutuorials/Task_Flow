@@ -1,5 +1,6 @@
 import { Inngest } from "inngest";
 import prisma from "../configs/prisma.js";
+import sendEmail from "../configs/nodemailer.js";
 
 export const inngest = new Inngest({ id: "project-management" });
 
@@ -61,7 +62,6 @@ const syncUserUpdation = inngest.createFunction(
   },
 );
 
-// Inngest function to save workspace data to a data base
 const syncWorkspaceCreation = inngest.createFunction(
   {
     id: "sync-workspace-from-clerk",
@@ -175,6 +175,48 @@ const syncWorkspaceMemberCreation = inngest.createFunction(
     });
   },
 );
+
+const sendTaskAssignmentEmail = inngest.createFunction(
+  {
+    id: "send-task-assignment-mail",
+    triggers: [{ event: "app/task.assigned" }],
+  },
+  async ({ event, step }) => {
+    const { taskId, origin } = event.data;
+
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: { assignee: true, project: true },
+    });
+
+    await sendEmail({
+      to: task.assignee.email,
+      subject: `New task Assignment in ${task.project.name}`,
+      body: `Hi ${task.assignee.name}, you have been assigned a new task: ${task.title}, due on ${new Date(task.due_date).toLocaleDateString()}. <a href=${origin}>View Task</a>`,
+    });
+
+    if (
+      new Date(task.due_date).toLocaleDateString() !== new Date().toDateString()
+    ) {
+      await step.sleepUntil("wait-for-the-due-date", new Date(task.due_date));
+      await step.run("check-if-task-is-completed", async () => {
+        const updatedTask = await prisma.task.findUnique({
+          where: { id: taskId },
+          include: { assignee: true, project: true },
+        });
+        if (!updatedTask) return;
+        if (updatedTask.status !== "DONE") {
+          await sendEmail({
+            to: updatedTask.assignee.email,
+            subject: `Reminder for ${updatedTask.project.name}`,
+            body: `Hi ${updatedTask.assignee.name}, your task: ${updatedTask.title} is due on ${new Date(updatedTask.due_date).toLocaleDateString()}. <a href=${origin}>View Task</a>`,
+          });
+        }
+      });
+    }
+  },
+);
+
 export const functions = [
   syncUserCreation,
   syncUserDeletion,
@@ -183,4 +225,5 @@ export const functions = [
   syncWorkspaceUpdation,
   syncWorkspaceDeletion,
   syncWorkspaceMemberCreation,
+  sendTaskAssignmentEmail,
 ];
