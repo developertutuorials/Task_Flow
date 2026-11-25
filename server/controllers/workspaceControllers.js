@@ -1,4 +1,5 @@
 import prisma from "../configs/prisma.js";
+import { clerkClient } from "@clerk/express";
 
 // Get all workspaces for user
 export const getUserWorkspaces = async (req, res) => {
@@ -36,39 +37,64 @@ export const getUserWorkspaces = async (req, res) => {
 // Create workspace
 export const createWorkspace = async (req, res) => {
   try {
-    const { userId } = await req.auth();
-    const { name } = req.body;
+    const { userId, orgId, orgSlug, orgRole } = await req.auth();
+    const { organizationId, name, slug, imageUrl } = req.body;
 
-    if (!name) {
-      return res.status(400).json({ message: "Workspace name is required" });
+    if (!orgId || organizationId !== orgId || orgRole !== "org:admin") {
+      return res
+        .status(400)
+        .json({ message: "An active organization is required" });
     }
 
-    const workspace = await prisma.workspace.create({
-      data: {
-        name,
-        ownerId: userId,
-        members: {
-          create: {
-            userId: userId,
-            role: "ADMIN",
-          },
+    const clerkUser = await clerkClient.users.getUser(userId);
+    const email = clerkUser.primaryEmailAddress?.emailAddress;
+    if (!email) {
+      return res
+        .status(400)
+        .json({ message: "Your Clerk account needs a primary email address" });
+    }
+
+    const workspace = await prisma.$transaction(async (transaction) => {
+      await transaction.user.upsert({
+        where: { id: userId },
+        update: {
+          email,
+          name: `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim(),
+          image: clerkUser.imageUrl || "",
         },
-      },
-      include: {
-        members: { include: { user: true } },
-        projects: {
-          include: {
-            tasks: {
-              include: {
-                assignee: true,
-                comments: { include: { user: true } },
-              },
-            },
-            members: { include: { user: true } },
-          },
+        create: {
+          id: userId,
+          email,
+          name: `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim(),
+          image: clerkUser.imageUrl || "",
         },
-        owner: true,
-      },
+      });
+
+      const workspaceRecord = await transaction.workspace.upsert({
+        where: { id: orgId },
+        update: {
+          name: name || orgSlug || orgId,
+          slug: slug || orgSlug || orgId,
+          image_url: imageUrl || "",
+        },
+        create: {
+          id: orgId,
+          name: name || orgSlug || orgId,
+          slug: slug || orgSlug || orgId,
+          ownerId: userId,
+          image_url: imageUrl || "",
+        },
+      });
+
+      await transaction.workspaceMember.upsert({
+        where: {
+          userId_workspaceId: { userId, workspaceId: orgId },
+        },
+        update: { role: "ADMIN" },
+        create: { userId, workspaceId: orgId, role: "ADMIN" },
+      });
+
+      return workspaceRecord;
     });
 
     res.status(201).json({ workspace });
