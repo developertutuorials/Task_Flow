@@ -3,13 +3,12 @@ import api from "../configs/api";
 
 export const fetchWorkspaces = createAsyncThunk(
   "workspace/fetchWorkspaces",
-  async ({ getToken, userId }, { rejectWithValue }) => {
+  async ({ getToken }, { rejectWithValue }) => {
     try {
       const token = await getToken();
-      const headers = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-      if (userId) headers["x-user-id"] = userId;
-      const { data } = await api.get("/api/workspaces", { headers });
+      const { data } = await api.get("/api/workspaces", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       return data.workspaces || [];
     } catch (error) {
       console.log(error?.response?.data?.message || error.message);
